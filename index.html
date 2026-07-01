@@ -1252,6 +1252,33 @@ function exitRecoveryMode(){
   setAuthMode('login');
 }
 
+   authSubmit.onclick = async ()=>{
+  if(authSubmit.dataset.mode === 'recovery'){
+    const newPassword = document.getElementById('authPassword').value;
+    if(newPassword.length < 6){
+      authError.style.color = 'var(--red-margin)';
+      authError.textContent = 'Password must be at least 6 characters.';
+      return;
+    }
+    authSubmit.disabled = true;
+    authSubmit.textContent = 'Updating…';
+    const { error } = await sb.auth.updateUser({ password: newPassword });
+    authSubmit.disabled = false;
+    if(error){
+      authError.style.color = 'var(--red-margin)';
+      authError.textContent = error.message;
+      authSubmit.textContent = 'Update password';
+      return;
+    }
+    authError.style.color = 'var(--sage)';
+    authError.textContent = 'Password updated — loading your planner…';
+    exitRecoveryMode();
+    setTimeout(()=>{ enterApp(); loadScheduleFromSupabase(); loadBudgetFromSupabase(); }, 800);
+    return;
+  }
+
+  // ...your existing login/signup code stays exactly as it is below this
+      
 authSubmit.onclick = async ()=>{
   const email = document.getElementById('authEmail').value.trim().toLowerCase();
   const password = document.getElementById('authPassword').value;
@@ -1305,11 +1332,16 @@ function showAuthGate(){
 
 sb.auth.onAuthStateChange((event, session)=>{
   currentUser = session ? session.user : null;
+   if(event === 'PASSWORD_RECOVERY'){
+    recoveryMode = true;
+    enterRecoveryMode();
+    return;
+  }
   if(currentUser){
     enterApp();
     loadScheduleFromSupabase();
     loadBudgetFromSupabase();
-  } else {
+  } else if(!currentUser ) {
     showAuthGate();
   }
 });
