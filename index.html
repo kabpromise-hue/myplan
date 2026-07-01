@@ -460,6 +460,10 @@
         <input type="password" id="authPassword" placeholder="••••••••" autocomplete="current-password">
       </div>
 
+      <div class="auth-fine" id="forgotPasswordWrap" style="text-align:left;margin-top:-8px;margin-bottom:14px;">
+  <a href="#" id="forgotPasswordLink" style="color:var(--coral);text-decoration:none;">Forgot password?</a>
+</div>
+
       <button class="auth-submit" id="authSubmit" type="button">Log in</button>
       <div class="auth-error" id="authError"></div>
       <div class="auth-fine">Accounts are handled securely by Supabase Auth.</div>
@@ -1198,6 +1202,55 @@ function setAuthMode(mode){
 }
 authTabLogin.onclick = ()=> setAuthMode('login');
 authTabSignup.onclick = ()=> setAuthMode('signup');
+
+   // ---- Forgot password ----
+document.getElementById('forgotPasswordLink').addEventListener('click', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('authEmail').value.trim().toLowerCase();
+  if(!email){
+    authError.style.color = 'var(--red-margin)';
+    authError.textContent = 'Enter your email above, then click "Forgot password?" again.';
+    return;
+  }
+  authError.style.color = '#8a8478';
+  authError.textContent = 'Sending reset link…';
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + window.location.pathname
+  });
+  if(error){
+    authError.style.color = 'var(--red-margin)';
+    authError.textContent = error.message;
+  } else {
+    authError.style.color = 'var(--sage)';
+    authError.textContent = 'Check your email for a password reset link.';
+  }
+});
+
+// ---- Handle the "set new password" step when someone clicks the emailed link ----
+let recoveryMode = false;
+
+function enterRecoveryMode(){
+  showAuthGate();
+  authTabLogin.style.display = 'none';
+  authTabSignup.style.display = 'none';
+  nameField.style.display = 'none';
+  document.getElementById('authEmail').closest('.auth-field').style.display = 'none';
+  document.getElementById('forgotPasswordWrap').style.display = 'none';
+  authHeading.textContent = 'Set a new password';
+  authSub.textContent = 'Enter a new password for your account.';
+  authSubmit.textContent = 'Update password';
+  authSubmit.dataset.mode = 'recovery';
+}
+
+function exitRecoveryMode(){
+  recoveryMode = false;
+  authSubmit.dataset.mode = '';
+  authTabLogin.style.display = '';
+  authTabSignup.style.display = '';
+  document.getElementById('authEmail').closest('.auth-field').style.display = '';
+  document.getElementById('forgotPasswordWrap').style.display = '';
+  setAuthMode('login');
+}
 
 authSubmit.onclick = async ()=>{
   const email = document.getElementById('authEmail').value.trim().toLowerCase();
