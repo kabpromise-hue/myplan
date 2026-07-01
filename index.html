@@ -1251,7 +1251,6 @@ function exitRecoveryMode(){
   document.getElementById('forgotPasswordWrap').style.display = '';
   setAuthMode('login');
 }
-
    authSubmit.onclick = async ()=>{
   if(authSubmit.dataset.mode === 'recovery'){
     const newPassword = document.getElementById('authPassword').value;
@@ -1277,9 +1276,6 @@ function exitRecoveryMode(){
     return;
   }
 
-  // ...your existing login/signup code stays exactly as it is below this
-      
-authSubmit.onclick = async ()=>{
   const email = document.getElementById('authEmail').value.trim().toLowerCase();
   const password = document.getElementById('authPassword').value;
   const name = document.getElementById('authName').value.trim();
@@ -1309,7 +1305,6 @@ authSubmit.onclick = async ()=>{
       const { error } = await sb.auth.signInWithPassword({ email, password });
       if(error) throw error;
     }
-    // onAuthStateChange below hides the overlay and loads saved data.
   }catch(err){
     authError.style.color = 'var(--red-margin)';
     authError.textContent = err.message || 'Something went wrong — try again.';
@@ -1318,6 +1313,7 @@ authSubmit.onclick = async ()=>{
     authSubmit.textContent = authMode === 'signup' ? 'Sign up' : 'Log in';
   }
 };
+
 
 document.getElementById('logoutBtn').onclick = async ()=>{
   await sb.auth.signOut();
