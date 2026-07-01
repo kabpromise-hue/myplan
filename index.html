@@ -1,0 +1,1313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weekly — a planner for student life</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --ink:#1B2A4A;
+    --paper:#FAF6EF;
+    --paper-line:#E4DCC8;
+    --coral:#E8743B;
+    --sage:#7C9885;
+    --graphite:#3A3A3A;
+    --white:#FFFFFF;
+    --red-margin:#C97B6B;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    background-image: repeating-linear-gradient(transparent, transparent 31px, var(--paper-line) 32px);
+    color:var(--graphite);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  ::selection{ background: var(--coral); color:var(--white); }
+
+  .wrap{max-width:1180px;margin:0 auto;padding:48px 28px 100px;}
+
+  header.hero{
+    position:relative;
+    padding:8px 0 40px;
+    border-bottom:2px solid var(--ink);
+    margin-bottom:40px;
+  }
+  .eyebrow{
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--coral);
+    margin-bottom:10px;
+  }
+  h1.title{
+    font-family:'Source Serif 4',serif;
+    font-weight:700;
+    font-size:clamp(36px,6vw,64px);
+    line-height:1.02;
+    margin:0 0 14px;
+    color:var(--ink);
+    letter-spacing:-0.01em;
+  }
+  h1.title em{
+    font-style:italic;
+    color:var(--coral);
+  }
+  .sub{
+    max-width:560px;
+    font-size:17px;
+    line-height:1.55;
+    color:#5b5b5b;
+  }
+  .corner-mark{
+    position:absolute; top:0; right:0;
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    color:#9a958a;
+    text-align:right;
+  }
+
+  /* === Tabs === */
+  .tabbar{
+    display:flex; gap:0; margin:-10px 0 36px;
+    border-bottom:1.5px solid var(--paper-line);
+  }
+  .tab-btn{
+    font-family:'Source Serif 4',serif;
+    font-size:17px;
+    font-weight:600;
+    background:none;
+    border:none;
+    padding:10px 22px 14px;
+    cursor:pointer;
+    color:#9a958a;
+    border-bottom:3px solid transparent;
+    margin-bottom:-1.5px;
+  }
+  .tab-btn.active{ color:var(--ink); border-bottom-color:var(--coral); }
+  .tab-btn:hover{ color:var(--ink); }
+
+  /* === Layout === */
+  .layout{ display:grid; grid-template-columns: 360px 1fr; gap:36px; align-items:start; }
+  @media (max-width: 920px){ .layout{ grid-template-columns: 1fr; } }
+
+  /* === Form panel === */
+  .panel{
+    background:var(--white);
+    border:1.5px solid var(--ink);
+    box-shadow: 6px 6px 0 rgba(27,42,74,0.08);
+    padding:28px;
+    position:sticky;
+    top:24px;
+  }
+  @media (max-width:920px){ .panel{ position:static; } }
+  .panel h2{
+    font-family:'Source Serif 4',serif;
+    font-size:22px;
+    margin:0 0 4px;
+    color:var(--ink);
+  }
+  .panel .hint{ font-size:13px; color:#8a8478; margin-bottom:22px; }
+
+  .field{ margin-bottom:18px; }
+  .field label{
+    display:block;
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    color:var(--ink);
+    margin-bottom:6px;
+  }
+  .row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  input[type=time], input[type=text], input[type=number], select{
+    width:100%;
+    font-family:'Inter',sans-serif;
+    font-size:14px;
+    padding:9px 10px;
+    border:1.5px solid #d8d2c4;
+    background:#fffdf9;
+    color:var(--graphite);
+    border-radius:2px;
+  }
+  input:focus, select:focus, textarea:focus{ outline:2px solid var(--coral); outline-offset:1px; border-color:var(--coral); }
+
+  .chip-group{ display:flex; flex-wrap:wrap; gap:6px; }
+  .chip{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11.5px;
+    padding:6px 10px;
+    border:1.5px solid #d8d2c4;
+    background:#fffdf9;
+    cursor:pointer;
+    user-select:none;
+    border-radius:2px;
+  }
+  .chip.active{ background:var(--ink); border-color:var(--ink); color:var(--white); }
+
+  .class-block{
+    border:1px dashed #cfc8b8; padding:10px; margin-bottom:8px; position:relative; background:#fffdf9;
+  }
+  .class-block .row2{ margin-bottom:6px; }
+  .class-block .remove{
+    position:absolute; top:6px; right:6px; cursor:pointer;
+    font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--red-margin); background:none; border:none;
+  }
+  .add-btn{
+    width:100%;
+    padding:9px;
+    background:none;
+    border:1.5px dashed var(--sage);
+    color:var(--sage);
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    cursor:pointer;
+    margin-top:2px;
+  }
+  .add-btn:hover{ background:#f0f4f1; }
+
+  .generate-btn{
+    width:100%;
+    margin-top:8px;
+    padding:14px;
+    background:var(--coral);
+    color:var(--white);
+    border:none;
+    font-family:'Source Serif 4',serif;
+    font-weight:600;
+    font-size:17px;
+    cursor:pointer;
+    letter-spacing:.01em;
+    transition:transform .12s ease;
+  }
+  .generate-btn:hover{ transform:translateY(-1px); }
+  .generate-btn:active{ transform:translateY(0); }
+
+  .save-row{ display:flex; gap:8px; margin-top:10px; }
+  .ghost-btn{
+    flex:1;
+    padding:9px;
+    background:none;
+    border:1.5px solid var(--ink);
+    color:var(--ink);
+    font-family:'JetBrains Mono',monospace;
+    font-size:11.5px;
+    cursor:pointer;
+  }
+  .ghost-btn:hover{ background:var(--ink); color:var(--white); }
+  .status-msg{ font-size:11.5px; font-family:'JetBrains Mono',monospace; color:var(--sage); margin-top:8px; min-height:14px; }
+
+  /* === Output === */
+  .output-head{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:14px; flex-wrap:wrap; gap:10px;}
+  .output-head h2{ font-family:'Source Serif 4',serif; font-size:24px; color:var(--ink); margin:0;}
+  .legend{ display:flex; gap:14px; flex-wrap:wrap; font-family:'JetBrains Mono',monospace; font-size:11px; color:#6b6558;}
+  .legend span{ display:inline-flex; align-items:center; gap:5px;}
+  .dot{ width:9px; height:9px; display:inline-block; border-radius:50%; }
+
+  .empty-state{
+    border:1.5px dashed #cfc8b8;
+    padding:60px 30px;
+    text-align:center;
+    color:#9a958a;
+    font-family:'Source Serif 4',serif;
+    font-size:18px;
+    font-style:italic;
+  }
+
+  .week-grid{
+    display:grid;
+    grid-template-columns: repeat(7, minmax(150px,1fr));
+    gap:10px;
+    overflow-x:auto;
+  }
+  @media (max-width: 920px){ .week-grid{ grid-template-columns: 1fr; overflow-x:visible; } }
+
+  .day-col{
+    background:#fffefb;
+    border:1.5px solid var(--ink);
+  }
+  .day-head{
+    background:var(--ink);
+    color:var(--paper);
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    padding:9px 10px;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .day-head .ds{ font-size:13px; font-family:'Source Serif 4',serif; font-style:italic; opacity:.85; }
+
+  .block-list{ padding:8px; display:flex; flex-direction:column; gap:6px; min-height:60px; }
+  .block-list.dragover{ background:#f4efe2; }
+
+  .block{
+    border-left:4px solid var(--sage);
+    background:#fbf9f3;
+    padding:7px 9px;
+    cursor:grab;
+    font-size:12.5px;
+    position:relative;
+  }
+  .block:active{ cursor:grabbing; }
+  .block .t{
+    font-family:'JetBrains Mono',monospace;
+    font-size:10.5px;
+    color:#867f70;
+    display:block;
+    margin-bottom:2px;
+  }
+  .block .label{ font-weight:600; color:var(--graphite); outline:none; }
+  .block .label[contenteditable=true]:focus{ background:#fff; box-shadow:0 0 0 1px var(--coral); }
+  .block .x{
+    position:absolute; top:5px; right:6px;
+    border:none; background:none; cursor:pointer; color:#bcb6a8; font-size:11px;
+  }
+  .block .x:hover{ color:var(--red-margin); }
+
+  .cat-class{ border-color:#5C7AEA; }
+  .cat-study{ border-color:var(--ink); }
+  .cat-skill{ border-color:var(--coral); }
+  .cat-exercise{ border-color:var(--sage); }
+  .cat-meal{ border-color:#C9A66B; }
+  .cat-screenfree{ border-color:#9D6B9D; }
+  .cat-sleep{ border-color:#8a8478; }
+  .cat-free{ border-color:#cfc8b8; }
+
+  .add-block-btn{
+    width:100%; padding:6px; margin-top:2px;
+    background:none; border:1px dashed #cfc8b8; color:#9a958a;
+    font-family:'JetBrains Mono',monospace; font-size:10.5px; cursor:pointer;
+  }
+  .add-block-btn:hover{ border-color:var(--coral); color:var(--coral); }
+
+  /* === Budget feature === */
+  .income-row, .expense-row{
+    display:grid; grid-template-columns: 1fr 90px 28px; gap:6px; margin-bottom:7px; align-items:center;
+  }
+  .expense-row{ grid-template-columns: 1fr 80px 92px 28px; }
+  .income-row input, .expense-row input, .expense-row select{ font-size:13px; padding:7px 8px; }
+  .row-remove{
+    border:none; background:none; color:var(--red-margin); cursor:pointer; font-size:13px; padding:0;
+  }
+  .add-row-btn{
+    width:100%; padding:8px; margin-top:2px; margin-bottom:14px;
+    background:none; border:1.5px dashed var(--sage); color:var(--sage);
+    font-family:'JetBrains Mono',monospace; font-size:11.5px; cursor:pointer;
+  }
+  .add-row-btn:hover{ background:#f0f4f1; }
+
+  .summary-grid{
+    display:grid; grid-template-columns: repeat(4,1fr); gap:12px; margin-bottom:24px;
+  }
+  @media (max-width:760px){ .summary-grid{ grid-template-columns: repeat(2,1fr); } }
+  .stat-card{
+    background:var(--white); border:1.5px solid var(--ink); padding:16px 14px;
+    box-shadow: 4px 4px 0 rgba(27,42,74,0.08);
+  }
+  .stat-card .k{
+    font-family:'JetBrains Mono',monospace; font-size:10.5px; text-transform:uppercase;
+    letter-spacing:.07em; color:#8a8478; margin-bottom:6px; display:block;
+  }
+  .stat-card .v{
+    font-family:'Source Serif 4',serif; font-size:24px; font-weight:700; color:var(--ink);
+  }
+  .stat-card.warn .v{ color:var(--coral); }
+  .stat-card.good .v{ color:var(--sage); }
+
+  .goal-block{
+    background:var(--white); border:1.5px solid var(--ink); padding:20px 22px; margin-bottom:24px;
+    box-shadow: 6px 6px 0 rgba(27,42,74,0.08);
+  }
+  .goal-block .gh{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px; flex-wrap:wrap; gap:8px;}
+  .goal-block h3{ font-family:'Source Serif 4',serif; font-size:19px; margin:0; color:var(--ink); }
+  .goal-pct{ font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--coral); }
+  .bar-track{ width:100%; height:14px; background:#efe9da; border:1px solid var(--paper-line); position:relative; overflow:hidden;}
+  .bar-fill{ height:100%; background:var(--sage); transition:width .3s ease; }
+  .bar-fill.over{ background:var(--coral); }
+  .goal-msg{ font-size:12.5px; color:#6b6558; margin-top:8px; font-family:'JetBrains Mono',monospace; }
+
+  .breakdown{
+    background:var(--white); border:1.5px solid var(--ink); padding:20px 22px;
+    box-shadow: 6px 6px 0 rgba(27,42,74,0.08);
+  }
+  .breakdown h3{ font-family:'Source Serif 4',serif; font-size:19px; margin:0 0 14px; color:var(--ink); }
+  .cat-row{ margin-bottom:12px; }
+  .cat-row .cl{ display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:4px; }
+  .cat-row .cl .name{ font-weight:600; color:var(--graphite); }
+  .cat-row .cl .amt{ font-family:'JetBrains Mono',monospace; color:#6b6558; }
+  .cat-bar-track{ width:100%; height:8px; background:#efe9da; }
+  .cat-bar-fill{ height:100%; }
+  .cat-essential{ background:var(--ink); }
+  .cat-discretionary{ background:var(--coral); }
+  .cat-savings{ background:var(--sage); }
+
+  footer.note{
+    margin-top:50px;
+    padding-top:18px;
+    border-top:1px solid var(--paper-line);
+    font-family:'JetBrains Mono',monospace;
+    font-size:11.5px;
+    color:#9a958a;
+    text-align:center;
+  }
+
+  /* === Auth gate === */
+  .auth-overlay{
+    position:fixed; inset:0; background:var(--paper);
+    background-image: repeating-linear-gradient(transparent, transparent 31px, var(--paper-line) 32px);
+    display:flex; align-items:center; justify-content:center;
+    z-index:300; padding:20px;
+  }
+  .auth-overlay[hidden]{ display:none; }
+  .auth-card{
+    background:var(--white);
+    border:1.5px solid var(--ink);
+    box-shadow:8px 8px 0 rgba(27,42,74,0.1);
+    max-width:400px; width:100%;
+    padding:34px 30px;
+  }
+  .auth-card .eyebrow{ margin-bottom:6px; }
+  .auth-card h1{
+    font-family:'Source Serif 4',serif; font-size:30px; color:var(--ink); margin:0 0 6px; line-height:1.05;
+  }
+  .auth-card .sub{ font-size:13.5px; margin-bottom:22px; max-width:none; }
+  .auth-tabs{ display:flex; border-bottom:1.5px solid var(--paper-line); margin-bottom:20px; }
+  .auth-tab{
+    flex:1; text-align:center; padding:9px 0 12px; background:none; border:none; cursor:pointer;
+    font-family:'JetBrains Mono',monospace; font-size:12px; text-transform:uppercase; letter-spacing:.06em;
+    color:#9a958a; border-bottom:3px solid transparent; margin-bottom:-1.5px;
+  }
+  .auth-tab.active{ color:var(--ink); border-bottom-color:var(--coral); }
+  .auth-field{ margin-bottom:14px; }
+  .auth-field label{
+    display:block; font-family:'JetBrains Mono',monospace; font-size:11px; text-transform:uppercase;
+    letter-spacing:.07em; color:var(--ink); margin-bottom:6px;
+  }
+  .auth-field input{
+    width:100%; font-family:'Inter',sans-serif; font-size:14px; padding:10px 11px;
+    border:1.5px solid #d8d2c4; background:#fffdf9; color:var(--graphite); border-radius:2px;
+  }
+  .auth-submit{
+    width:100%; padding:13px; margin-top:6px; background:var(--ink); color:var(--paper); border:none;
+    font-family:'Source Serif 4',serif; font-weight:600; font-size:16px; cursor:pointer;
+  }
+  .auth-submit[disabled]{ opacity:.6; cursor:default; }
+  .auth-submit:hover:not([disabled]){ background:#15203a; }
+  .auth-error{
+    font-family:'JetBrains Mono',monospace; font-size:11.5px; color:var(--red-margin); margin-top:10px; min-height:14px;
+  }
+  .auth-fine{
+    font-family:'JetBrains Mono',monospace; font-size:10px; color:#9a958a; margin-top:18px; line-height:1.6; text-align:center;
+  }
+  .topbar{ display:flex; justify-content:flex-end; margin-bottom:-10px; }
+  .logout-btn{
+    font-family:'JetBrains Mono',monospace; font-size:11px; color:#8a8478;
+    background:none; border:1px solid #d8d2c4; padding:5px 10px; cursor:pointer;
+  }
+  .logout-btn:hover{ border-color:var(--coral); color:var(--coral); }
+
+  /* === Feedback === */
+  .feedback-section{ margin-top:50px; padding-top:30px; border-top:1.5px solid var(--ink); }
+  .feedback-section h3{ font-family:'Source Serif 4',serif; font-size:21px; color:var(--ink); margin:0 0 6px; }
+  .feedback-section .sub{ font-size:13.5px; margin-bottom:16px; }
+  .feedback-section textarea{
+    width:100%; min-height:90px; font-family:'Inter',sans-serif; font-size:14px; padding:11px;
+    border:1.5px solid #d8d2c4; background:#fffdf9; color:var(--graphite); border-radius:2px; resize:vertical;
+  }
+  .feedback-row{ display:flex; gap:10px; margin-top:10px; flex-wrap:wrap; }
+  .feedback-row input{
+    flex:1; min-width:200px; font-family:'Inter',sans-serif; font-size:14px; padding:10px 11px;
+    border:1.5px solid #d8d2c4; background:#fffdf9; color:var(--graphite); border-radius:2px;
+  }
+  .feedback-send{
+    padding:11px 22px; background:var(--coral); color:#fff; border:none;
+    font-family:'Source Serif 4',serif; font-weight:600; font-size:14px; cursor:pointer; white-space:nowrap;
+  }
+  .feedback-msg{ font-family:'JetBrains Mono',monospace; font-size:11.5px; color:var(--sage); margin-top:10px; min-height:14px; }
+</style>
+</head>
+<body>
+
+  <div class="auth-overlay" id="authOverlay">
+    <div class="auth-card">
+      <div class="eyebrow">Weekly — term planner</div>
+      <h1 id="authHeading">Welcome back</h1>
+      <p class="sub" id="authSub">Log in to build your week.</p>
+
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="authTabLogin" type="button">Log in</button>
+        <button class="auth-tab" id="authTabSignup" type="button">Sign up</button>
+      </div>
+
+      <div class="auth-field" id="nameField" style="display:none;">
+        <label>Name</label>
+        <input type="text" id="authName" placeholder="Your name" autocomplete="name">
+      </div>
+      <div class="auth-field">
+        <label>Email</label>
+        <input type="email" id="authEmail" placeholder="you@university.edu" autocomplete="email">
+      </div>
+      <div class="auth-field">
+        <label>Password</label>
+        <input type="password" id="authPassword" placeholder="••••••••" autocomplete="current-password">
+      </div>
+
+      <button class="auth-submit" id="authSubmit" type="button">Log in</button>
+      <div class="auth-error" id="authError"></div>
+      <div class="auth-fine">Accounts are handled securely by Supabase Auth.</div>
+    </div>
+  </div>
+
+<div class="wrap">
+
+  <div class="topbar">
+    <button class="logout-btn" id="logoutBtn" type="button">Log out</button>
+  </div>
+
+  <header class="hero">
+    <div class="corner-mark">WK.01 — TERM PLANNER</div>
+    <div class="eyebrow">For full-time students</div>
+    <h1 class="title">Build a week that<br><em>actually</em> works for you.</h1>
+    <p class="sub">Tell it your classes, your goals, and your bad habits. It drafts a full seven-day routine — study blocks, a new skill, less scrolling, real sleep — and you drag, edit, or delete anything that doesn't fit.</p>
+  </header>
+
+  <div class="tabbar">
+    <button class="tab-btn active" id="tabRoutine" type="button">Weekly routine</button>
+    <button class="tab-btn" id="tabBudget" type="button">Budget &amp; savings</button>
+  </div>
+
+  <div id="routineView">
+  <div class="layout">
+    <!-- FORM -->
+    <div class="panel">
+      <h2>Your week, in</h2>
+      <div class="hint">five short steps — takes about a minute.</div>
+
+      <div class="field">
+        <label>Wake / Sleep time</label>
+        <div class="row2">
+          <input type="time" id="wakeTime" value="07:00">
+          <input type="time" id="sleepTime" value="23:00">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Class days</label>
+        <div class="chip-group" id="dayChips">
+          <span class="chip active" data-day="Mon">Mon</span>
+          <span class="chip active" data-day="Tue">Tue</span>
+          <span class="chip active" data-day="Wed">Wed</span>
+          <span class="chip active" data-day="Thu">Thu</span>
+          <span class="chip active" data-day="Fri">Fri</span>
+          <span class="chip" data-day="Sat">Sat</span>
+          <span class="chip" data-day="Sun">Sun</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Classes / lectures this week</label>
+        <div id="classBlocks"></div>
+        <button class="add-btn" id="addClass" type="button">+ add a class block</button>
+      </div>
+
+      <div class="field">
+        <label>Daily focused study (hours)</label>
+        <input type="number" id="studyHours" min="0" max="8" step="0.5" value="2.5">
+      </div>
+
+      <div class="field">
+        <label>Skill you want to learn this term</label>
+        <input type="text" id="skillName" placeholder="e.g. guitar, Spanish, Python">
+      </div>
+
+      <div class="field">
+        <label>Daily recreational screen time goal (hours)</label>
+        <input type="number" id="screenGoal" min="0.5" max="6" step="0.5" value="1.5">
+      </div>
+
+      <div class="field">
+        <label>Exercise preference</label>
+        <select id="exercisePref">
+          <option value="daily">Light movement daily</option>
+          <option value="4x">Workout 4x / week</option>
+          <option value="3x">Workout 3x / week</option>
+          <option value="none">Skip exercise blocks</option>
+        </select>
+      </div>
+
+      <button class="generate-btn" id="generateBtn" type="button">Generate my week →</button>
+      <div class="save-row">
+        <button class="ghost-btn" id="saveBtn" type="button">Save</button>
+        <button class="ghost-btn" id="loadBtn" type="button">Load saved</button>
+        <button class="ghost-btn" id="resetBtn" type="button">Reset</button>
+      </div>
+      <div class="status-msg" id="statusMsg"></div>
+    </div>
+
+    <!-- OUTPUT -->
+    <div class="output">
+      <div class="output-head">
+        <h2 id="outputTitle">Your week</h2>
+        <div class="legend">
+          <span><i class="dot" style="background:#5C7AEA"></i>class</span>
+          <span><i class="dot" style="background:#1B2A4A"></i>study</span>
+          <span><i class="dot" style="background:#E8743B"></i>skill</span>
+          <span><i class="dot" style="background:#7C9885"></i>exercise</span>
+          <span><i class="dot" style="background:#C9A66B"></i>meal</span>
+          <span><i class="dot" style="background:#9D6B9D"></i>screen-free</span>
+          <span><i class="dot" style="background:#8a8478"></i>sleep</span>
+        </div>
+      </div>
+
+      <div id="emptyState" class="empty-state">No routine yet — fill in the form and generate one. Once it's built, drag blocks between days or click any title to rename it.</div>
+      <div id="weekGrid" class="week-grid" style="display:none;"></div>
+    </div>
+  </div>
+  </div>
+  <!-- /routineView -->
+
+  <div id="budgetView" style="display:none;">
+    <div class="layout">
+      <!-- BUDGET FORM -->
+      <div class="panel">
+        <h2>Your money, in</h2>
+        <div class="hint">monthly stipend, any other income, your goal.</div>
+
+        <div class="field">
+          <label>Income sources (monthly)</label>
+          <div id="incomeRows"></div>
+          <button class="add-row-btn" id="addIncome" type="button">+ add income source</button>
+        </div>
+
+        <div class="field">
+          <label>Monthly savings goal</label>
+          <div class="row2">
+            <input type="number" id="savingsGoalAmt" min="0" step="5" placeholder="amount">
+            <select id="savingsGoalMode">
+              <option value="amount">fixed amount</option>
+              <option value="percent">% of income</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Monthly expenses</label>
+          <div id="expenseRows"></div>
+          <button class="add-row-btn" id="addExpense" type="button">+ add expense</button>
+        </div>
+
+        <button class="generate-btn" id="calcBudgetBtn" type="button">Calculate my budget →</button>
+        <div class="save-row">
+          <button class="ghost-btn" id="saveBudgetBtn" type="button">Save</button>
+          <button class="ghost-btn" id="loadBudgetBtn" type="button">Load saved</button>
+          <button class="ghost-btn" id="resetBudgetBtn" type="button">Reset</button>
+        </div>
+        <div class="status-msg" id="budgetStatusMsg"></div>
+      </div>
+
+      <!-- BUDGET OUTPUT -->
+      <div class="output">
+        <div class="output-head">
+          <h2>Monthly picture</h2>
+        </div>
+
+        <div id="budgetEmptyState" class="empty-state">No budget yet — add your income and expenses, then calculate.</div>
+
+        <div id="budgetResults" style="display:none;">
+          <div class="summary-grid">
+            <div class="stat-card"><span class="k">Total income</span><span class="v" id="statIncome">$0</span></div>
+            <div class="stat-card"><span class="k">Total expenses</span><span class="v" id="statExpenses">$0</span></div>
+            <div class="stat-card" id="statLeftoverCard"><span class="k">Left after expenses</span><span class="v" id="statLeftover">$0</span></div>
+            <div class="stat-card" id="statGoalCard"><span class="k">Savings goal</span><span class="v" id="statGoal">$0</span></div>
+          </div>
+
+          <div class="goal-block">
+            <div class="gh">
+              <h3>Savings goal progress</h3>
+              <span class="goal-pct" id="goalPct">0%</span>
+            </div>
+            <div class="bar-track"><div class="bar-fill" id="goalBarFill" style="width:0%"></div></div>
+            <div class="goal-msg" id="goalMsg"></div>
+          </div>
+
+          <div class="breakdown">
+            <h3>Where it's going</h3>
+            <div id="catBreakdown"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- /budgetView -->
+
+  <div class="feedback-section">
+    <h3>Got feedback?</h3>
+    <p class="sub">Tell us what's confusing, broken, or missing.</p>
+    <textarea id="feedbackText" placeholder="Your feedback..."></textarea>
+    <div class="feedback-row">
+      <input type="email" id="feedbackEmail" placeholder="Your email (optional, if you want a reply)">
+      <button class="feedback-send" id="feedbackSend" type="button">Send feedback</button>
+    </div>
+    <div class="feedback-msg" id="feedbackMsg"></div>
+  </div>
+
+  <footer class="note">made for students who'd rather build the week than survive it — everything here is editable, nothing is final</footer>
+</div>
+
+
+<script>
+const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+let schedule = {}; // { Mon: [ {start,end,label,cat,id} ] }
+let classDays = new Set(['Mon','Tue','Wed','Thu','Fri']);
+
+// ---------- helpers ----------
+function uid(){ return 'b'+Math.random().toString(36).slice(2,9); }
+function toMin(t){ const [h,m]=t.split(':').map(Number); return h*60+m; }
+function toTime(mins){
+  mins = ((mins % 1440)+1440)%1440;
+  const h = Math.floor(mins/60), m = mins%60;
+  const hh = String(h).padStart(2,'0'), mm=String(m).padStart(2,'0');
+  return `${hh}:${mm}`;
+}
+function fmt12(t){
+  let [h,m] = t.split(':').map(Number);
+  const ap = h>=12?'pm':'am';
+  h = h%12; if(h===0) h=12;
+  return `${h}:${String(m).padStart(2,'0')}${ap}`;
+}
+
+// ---------- class block inputs ----------
+const classBlocksEl = document.getElementById('classBlocks');
+function addClassRow(data){
+  data = data || {start:'09:00', end:'10:30', name:'', days:'Mon,Wed,Fri'};
+  const row = document.createElement('div');
+  row.className = 'class-block';
+  row.innerHTML = `
+    <button class="remove" type="button">remove</button>
+    <div class="row2">
+      <input type="time" class="cb-start" value="${data.start}">
+      <input type="time" class="cb-end" value="${data.end}">
+    </div>
+    <input type="text" class="cb-name" placeholder="Course name" value="${data.name}" style="margin-bottom:6px;">
+    <input type="text" class="cb-days" placeholder="Days e.g. Mon,Wed,Fri" value="${data.days}">
+  `;
+  row.querySelector('.remove').onclick = ()=> row.remove();
+  classBlocksEl.appendChild(row);
+}
+document.getElementById('addClass').onclick = ()=> addClassRow();
+addClassRow({start:'09:00',end:'10:30',name:'Intro Lecture',days:'Mon,Wed,Fri'});
+addClassRow({start:'13:00',end:'14:30',name:'Lab / Seminar',days:'Tue,Thu'});
+
+// day chips
+document.querySelectorAll('#dayChips .chip').forEach(chip=>{
+  chip.onclick = ()=>{
+    chip.classList.toggle('active');
+    const d = chip.dataset.day;
+    if(chip.classList.contains('active')) classDays.add(d); else classDays.delete(d);
+  };
+});
+
+// ---------- generator ----------
+function readClassInputs(){
+  const rows = [...classBlocksEl.querySelectorAll('.class-block')];
+  return rows.map(r=>({
+    start: r.querySelector('.cb-start').value,
+    end: r.querySelector('.cb-end').value,
+    name: r.querySelector('.cb-name').value || 'Class',
+    days: r.querySelector('.cb-days').value.split(',').map(s=>s.trim()).filter(Boolean)
+  }));
+}
+
+function generateSchedule(){
+  const wake = document.getElementById('wakeTime').value || '07:00';
+  const sleep = document.getElementById('sleepTime').value || '23:00';
+  const studyHrs = parseFloat(document.getElementById('studyHours').value)||2;
+  const skill = document.getElementById('skillName').value.trim() || 'a new skill';
+  const screenGoal = parseFloat(document.getElementById('screenGoal').value)||1.5;
+  const exercise = document.getElementById('exercisePref').value;
+  const classes = readClassInputs();
+
+  let wakeM = toMin(wake);
+  let sleepM = toMin(sleep);
+  if(sleepM <= wakeM) sleepM += 1440;
+
+  const exerciseDays = exercise==='none' ? [] :
+    exercise==='daily' ? DAYS :
+    exercise==='4x' ? ['Mon','Tue','Thu','Fri'] :
+    ['Mon','Wed','Fri'];
+
+  schedule = {};
+
+  DAYS.forEach((day,di)=>{
+    const blocks = [];
+    let cursor = wakeM;
+
+    const push = (start,end,label,cat)=>{
+      blocks.push({id:uid(), start:toTime(start), end:toTime(end), label, cat});
+    };
+
+    // wake + morning routine
+    push(cursor, cursor+30, 'Wake up & morning routine', 'free');
+    cursor += 30;
+
+    // classes for this day, sorted
+    const todays = classes.filter(c=>c.days.includes(day)).sort((a,b)=>toMin(a.start)-toMin(b.start));
+
+    // breakfast
+    push(cursor, cursor+30, 'Breakfast', 'meal');
+    cursor += 30;
+
+    todays.forEach(c=>{
+      let cs = toMin(c.start), ce = toMin(c.end);
+      if(ce < cs) ce += 1440;
+      if(cs > cursor + 15){
+        // free gap before class -> nothing forced, just jump cursor
+      }
+      push(cs, ce, c.name, 'class');
+      cursor = Math.max(cursor, ce);
+    });
+
+    // lunch if past midday and no class covering it
+    const noon = 12*60;
+    if(cursor <= noon+60){
+      push(Math.max(cursor,noon), Math.max(cursor,noon)+45, 'Lunch', 'meal');
+      cursor = Math.max(cursor,noon)+45;
+    }
+
+    // study block
+    const studyMin = Math.round(studyHrs*60);
+    if(studyMin>0){
+      push(cursor, cursor+studyMin, 'Focused study', 'study');
+      cursor += studyMin;
+    }
+
+    // skill block
+    push(cursor, cursor+45, `Learn: ${skill}`, 'skill');
+    cursor += 45;
+
+    // exercise
+    if(exerciseDays.includes(day)){
+      push(cursor, cursor+45, 'Exercise / movement', 'exercise');
+      cursor += 45;
+    }
+
+    // dinner
+    const dinnerTarget = 19*60;
+    const dinnerStart = Math.max(cursor, dinnerTarget);
+    push(dinnerStart, dinnerStart+45, 'Dinner', 'meal');
+    cursor = dinnerStart+45;
+
+    // screen time (capped at goal)
+    const screenMin = Math.max(30, Math.round(screenGoal*60));
+    push(cursor, cursor+screenMin, 'Free screen time (goal-capped)', 'free');
+    cursor += screenMin;
+
+    // wind-down screen-free
+    const windDown = Math.max(30, sleepM - cursor - 0); // remaining before sleep, min 30
+    let wdStart = cursor;
+    let wdEnd = sleepM;
+    if(wdEnd - wdStart < 30){ wdStart = sleepM - 30; }
+    push(wdStart, wdEnd, 'Screen-free wind-down (read, journal, stretch)', 'screenfree');
+
+    push(sleepM, sleepM+5, 'Sleep', 'sleep');
+
+    schedule[day] = blocks;
+  });
+
+  document.getElementById('emptyState').style.display='none';
+  document.getElementById('weekGrid').style.display='grid';
+  renderWeek();
+  setStatus('Generated — drag blocks between days, click text to edit.');
+}
+
+// ---------- render ----------
+const weekGrid = document.getElementById('weekGrid');
+function renderWeek(){
+  weekGrid.innerHTML = '';
+  DAYS.forEach(day=>{
+    const col = document.createElement('div');
+    col.className = 'day-col';
+    const isClassDay = classDays.has(day);
+    col.innerHTML = `<div class="day-head"><span>${day}</span><span class="ds">${isClassDay?'campus':'open'}</span></div>`;
+    const list = document.createElement('div');
+    list.className = 'block-list';
+    list.dataset.day = day;
+    (schedule[day]||[]).forEach(b=> list.appendChild(renderBlock(b, day)));
+
+    const addBtn = document.createElement('button');
+    addBtn.className = 'add-block-btn';
+    addBtn.type = 'button';
+    addBtn.textContent = '+ add block';
+    addBtn.onclick = ()=>{
+      const nb = {id:uid(), start:'12:00', end:'12:30', label:'New block', cat:'free'};
+      schedule[day].push(nb);
+      list.insertBefore(renderBlock(nb,day), addBtn);
+    };
+
+    col.appendChild(list);
+    col.appendChild(addBtn);
+    weekGrid.appendChild(col);
+
+    list.addEventListener('dragover', e=>{ e.preventDefault(); list.classList.add('dragover'); });
+    list.addEventListener('dragleave', ()=> list.classList.remove('dragover'));
+    list.addEventListener('drop', e=>{
+      e.preventDefault();
+      list.classList.remove('dragover');
+      const id = e.dataTransfer.getData('text/plain');
+      const fromDay = e.dataTransfer.getData('day');
+      if(!id) return;
+      const idx = schedule[fromDay].findIndex(b=>b.id===id);
+      if(idx===-1) return;
+      const [moved] = schedule[fromDay].splice(idx,1);
+      schedule[day].push(moved);
+      renderWeek();
+    });
+  });
+}
+
+function renderBlock(b, day){
+  const el = document.createElement('div');
+  el.className = `block cat-${b.cat}`;
+  el.draggable = true;
+  el.innerHTML = `
+    <button class="x" type="button" title="remove">✕</button>
+    <span class="t">${fmt12(b.start)} – ${fmt12(b.end)}</span>
+    <span class="label" contenteditable="true">${b.label}</span>
+  `;
+  el.querySelector('.x').onclick = ()=>{
+    schedule[day] = schedule[day].filter(x=>x.id!==b.id);
+    el.remove();
+  };
+  el.querySelector('.label').addEventListener('blur', e=>{
+    b.label = e.target.textContent.trim() || b.label;
+  });
+  el.addEventListener('dragstart', e=>{
+    e.dataTransfer.setData('text/plain', b.id);
+    e.dataTransfer.setData('day', day);
+  });
+  return el;
+}
+
+document.getElementById('generateBtn').onclick = generateSchedule;
+
+// ---------- persistence ----------
+function setStatus(msg){
+  const el = document.getElementById('statusMsg');
+  el.textContent = msg;
+  if(msg) setTimeout(()=>{ if(el.textContent===msg) el.textContent=''; }, 3500);
+}
+
+document.getElementById('saveBtn').onclick = async ()=>{
+  if(!currentUser){ setStatus('Log in first.'); return; }
+  setStatus('Saving…');
+  try{
+    const { error } = await sb.from('planner_schedule').upsert({
+      user_id: currentUser.id,
+      data: { schedule, classDays:[...classDays] },
+      updated_at: new Date().toISOString()
+    });
+    if(error) throw error;
+    setStatus('Saved.');
+  }catch(err){ setStatus('Could not save: ' + err.message); console.error(err); }
+};
+document.getElementById('loadBtn').onclick = loadScheduleFromSupabase;
+
+async function loadScheduleFromSupabase(){
+  if(!currentUser) return;
+  setStatus('Loading saved week…');
+  try{
+    const { data, error } = await sb
+      .from('planner_schedule')
+      .select('data')
+      .eq('user_id', currentUser.id)
+      .maybeSingle();
+    if(error) throw error;
+    if(data && data.data && data.data.schedule){
+      schedule = data.data.schedule || {};
+      classDays = new Set(data.data.classDays || []);
+      document.querySelectorAll('#dayChips .chip').forEach(c=>{
+        c.classList.toggle('active', classDays.has(c.dataset.day));
+      });
+      document.getElementById('emptyState').style.display='none';
+      document.getElementById('weekGrid').style.display='grid';
+      renderWeek();
+      setStatus('Loaded your saved week.');
+    } else {
+      setStatus('Nothing saved yet.');
+    }
+  }catch(err){ setStatus('Could not load: ' + err.message); }
+}
+document.getElementById('resetBtn').onclick = ()=>{
+  schedule = {};
+  document.getElementById('weekGrid').style.display='none';
+  document.getElementById('emptyState').style.display='block';
+  setStatus('Cleared.');
+};
+
+// ================= TABS =================
+const tabRoutine = document.getElementById('tabRoutine');
+const tabBudget = document.getElementById('tabBudget');
+const routineView = document.getElementById('routineView');
+const budgetView = document.getElementById('budgetView');
+tabRoutine.onclick = ()=>{
+  tabRoutine.classList.add('active'); tabBudget.classList.remove('active');
+  routineView.style.display='block'; budgetView.style.display='none';
+};
+tabBudget.onclick = ()=>{
+  tabBudget.classList.add('active'); tabRoutine.classList.remove('active');
+  budgetView.style.display='block'; routineView.style.display='none';
+};
+
+// ================= BUDGET FEATURE =================
+const incomeRowsEl = document.getElementById('incomeRows');
+const expenseRowsEl = document.getElementById('expenseRows');
+
+function addIncomeRow(data){
+  data = data || {name:'', amount:''};
+  const row = document.createElement('div');
+  row.className = 'income-row';
+  row.innerHTML = `
+    <input type="text" class="inc-name" placeholder="e.g. Monthly stipend" value="${data.name}">
+    <input type="number" class="inc-amt" placeholder="amount" min="0" step="5" value="${data.amount}">
+    <button class="row-remove" type="button">✕</button>
+  `;
+  row.querySelector('.row-remove').onclick = ()=> row.remove();
+  incomeRowsEl.appendChild(row);
+}
+function addExpenseRow(data){
+  data = data || {name:'', amount:'', cat:'essential'};
+  const row = document.createElement('div');
+  row.className = 'expense-row';
+  row.innerHTML = `
+    <input type="text" class="exp-name" placeholder="e.g. Rent, groceries, transit" value="${data.name}">
+    <input type="number" class="exp-amt" placeholder="amount" min="0" step="5" value="${data.amount}">
+    <select class="exp-cat">
+      <option value="essential" ${data.cat==='essential'?'selected':''}>essential</option>
+      <option value="discretionary" ${data.cat==='discretionary'?'selected':''}>discretionary</option>
+    </select>
+    <button class="row-remove" type="button">✕</button>
+  `;
+  row.querySelector('.row-remove').onclick = ()=> row.remove();
+  expenseRowsEl.appendChild(row);
+}
+document.getElementById('addIncome').onclick = ()=> addIncomeRow();
+document.getElementById('addExpense').onclick = ()=> addExpenseRow();
+
+// sensible defaults for a student
+addIncomeRow({name:'Monthly stipend', amount:800});
+addExpenseRow({name:'Rent / housing', amount:350, cat:'essential'});
+addExpenseRow({name:'Groceries', amount:150, cat:'essential'});
+addExpenseRow({name:'Transit', amount:40, cat:'essential'});
+addExpenseRow({name:'Subscriptions & going out', amount:80, cat:'discretionary'});
+
+function readIncome(){
+  return [...incomeRowsEl.querySelectorAll('.income-row')].map(r=>({
+    name: r.querySelector('.inc-name').value || 'Income',
+    amount: parseFloat(r.querySelector('.inc-amt').value) || 0
+  }));
+}
+function readExpenses(){
+  return [...expenseRowsEl.querySelectorAll('.expense-row')].map(r=>({
+    name: r.querySelector('.exp-name').value || 'Expense',
+    amount: parseFloat(r.querySelector('.exp-amt').value) || 0,
+    cat: r.querySelector('.exp-cat').value
+  }));
+}
+
+function money(n){
+  const sign = n<0 ? '-' : '';
+  return sign + '$' + Math.abs(Math.round(n)).toLocaleString();
+}
+
+function calcBudget(){
+  const income = readIncome();
+  const expenses = readExpenses();
+  const totalIncome = income.reduce((s,i)=>s+i.amount,0);
+  const totalExpenses = expenses.reduce((s,e)=>s+e.amount,0);
+  const leftover = totalIncome - totalExpenses;
+
+  const goalMode = document.getElementById('savingsGoalMode').value;
+  const goalInput = parseFloat(document.getElementById('savingsGoalAmt').value) || 0;
+  const savingsGoal = goalMode === 'percent' ? (totalIncome * goalInput/100) : goalInput;
+
+  document.getElementById('budgetEmptyState').style.display='none';
+  document.getElementById('budgetResults').style.display='block';
+
+  document.getElementById('statIncome').textContent = money(totalIncome);
+  document.getElementById('statExpenses').textContent = money(totalExpenses);
+  document.getElementById('statLeftover').textContent = money(leftover);
+  document.getElementById('statGoal').textContent = money(savingsGoal);
+
+  const leftoverCard = document.getElementById('statLeftoverCard');
+  leftoverCard.className = 'stat-card ' + (leftover < 0 ? 'warn' : 'good');
+
+  const pct = savingsGoal > 0 ? Math.min(100, Math.round((leftover/savingsGoal)*100)) : 0;
+  const fill = document.getElementById('goalBarFill');
+  fill.style.width = Math.max(0,Math.min(100,pct)) + '%';
+  fill.className = 'bar-fill' + (leftover < savingsGoal ? '' : '');
+  document.getElementById('goalPct').textContent = pct + '%';
+
+  const goalMsgEl = document.getElementById('goalMsg');
+  if(savingsGoal <= 0){
+    goalMsgEl.textContent = 'Set a savings goal above to track progress toward it.';
+  } else if(leftover < 0){
+    fill.classList.add('over');
+    goalMsgEl.textContent = `You're spending ${money(Math.abs(leftover))} more than you bring in this month — trim discretionary spending below to get back on track.`;
+  } else if(leftover < savingsGoal){
+    goalMsgEl.textContent = `You're ${money(savingsGoal-leftover)} short of your ${money(savingsGoal)} goal at current spending. Cutting discretionary costs would close the gap.`;
+  } else {
+    goalMsgEl.textContent = `You're on track — covering your ${money(savingsGoal)} goal with ${money(leftover-savingsGoal)} to spare.`;
+  }
+
+  // category breakdown: essential / discretionary / savings(leftover put toward goal)
+  const essentialTotal = expenses.filter(e=>e.cat==='essential').reduce((s,e)=>s+e.amount,0);
+  const discretionaryTotal = expenses.filter(e=>e.cat==='discretionary').reduce((s,e)=>s+e.amount,0);
+  const savedTowardGoal = Math.max(0, Math.min(leftover, savingsGoal>0?savingsGoal:leftover));
+  const base = totalIncome > 0 ? totalIncome : (essentialTotal+discretionaryTotal+savedTowardGoal) || 1;
+
+  const rows = [
+    {label:'Essential expenses', amt:essentialTotal, cls:'cat-essential'},
+    {label:'Discretionary expenses', amt:discretionaryTotal, cls:'cat-discretionary'},
+    {label:'Going toward savings', amt:Math.max(0,leftover), cls:'cat-savings'},
+  ];
+  const catEl = document.getElementById('catBreakdown');
+  catEl.innerHTML = '';
+  rows.forEach(r=>{
+    const pctW = Math.min(100, Math.round((r.amt/base)*100));
+    const div = document.createElement('div');
+    div.className = 'cat-row';
+    div.innerHTML = `
+      <div class="cl"><span class="name">${r.label}</span><span class="amt">${money(r.amt)}</span></div>
+      <div class="cat-bar-track"><div class="cat-bar-fill ${r.cls}" style="width:${pctW}%"></div></div>
+    `;
+    catEl.appendChild(div);
+  });
+
+  setBudgetStatus('Updated.');
+}
+
+document.getElementById('calcBudgetBtn').onclick = calcBudget;
+
+function setBudgetStatus(msg){
+  const el = document.getElementById('budgetStatusMsg');
+  el.textContent = msg;
+  if(msg) setTimeout(()=>{ if(el.textContent===msg) el.textContent=''; }, 3500);
+}
+
+document.getElementById('saveBudgetBtn').onclick = async ()=>{
+  if(!currentUser){ setBudgetStatus('Log in first.'); return; }
+  setBudgetStatus('Saving…');
+  try{
+    const payload = {
+      income: readIncome(),
+      expenses: readExpenses(),
+      goalMode: document.getElementById('savingsGoalMode').value,
+      goalAmt: document.getElementById('savingsGoalAmt').value
+    };
+    const { error } = await sb.from('planner_budget').upsert({
+      user_id: currentUser.id,
+      data: payload,
+      updated_at: new Date().toISOString()
+    });
+    if(error) throw error;
+    setBudgetStatus('Saved.');
+  }catch(err){ setBudgetStatus('Could not save: ' + err.message); console.error(err); }
+};
+document.getElementById('loadBudgetBtn').onclick = loadBudgetFromSupabase;
+
+async function loadBudgetFromSupabase(){
+  if(!currentUser) return;
+  setBudgetStatus('Loading saved budget…');
+  try{
+    const { data, error } = await sb
+      .from('planner_budget')
+      .select('data')
+      .eq('user_id', currentUser.id)
+      .maybeSingle();
+    if(error) throw error;
+    if(data && data.data && (data.data.income || data.data.expenses)){
+      incomeRowsEl.innerHTML = '';
+      expenseRowsEl.innerHTML = '';
+      (data.data.income||[]).forEach(addIncomeRow);
+      (data.data.expenses||[]).forEach(addExpenseRow);
+      document.getElementById('savingsGoalMode').value = data.data.goalMode || 'amount';
+      document.getElementById('savingsGoalAmt').value = data.data.goalAmt || '';
+      calcBudget();
+      setBudgetStatus('Loaded your saved budget.');
+    } else {
+      setBudgetStatus('Nothing saved yet.');
+    }
+  }catch(err){ setBudgetStatus('Could not load: ' + err.message); }
+}
+document.getElementById('resetBudgetBtn').onclick = ()=>{
+  incomeRowsEl.innerHTML = '';
+  expenseRowsEl.innerHTML = '';
+  document.getElementById('savingsGoalAmt').value = '';
+  document.getElementById('budgetResults').style.display='none';
+  document.getElementById('budgetEmptyState').style.display='block';
+  setBudgetStatus('Cleared.');
+};
+// ================= SUPABASE SETUP =================
+// Replace with your own project's values:
+// Supabase Dashboard -> your project -> Settings -> API
+//   "Project URL"       -> SUPABASE_URL
+//   "anon" "public" key -> SUPABASE_ANON_KEY
+// Never put the service_role key in frontend code — only the anon key.
+const SUPABASE_URL = 'https://qizmcgjpcunqcmvexaed.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpem1jZ2pwY3VucWNtdmV4YWVkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MDcwMTksImV4cCI6MjA5ODM4MzAxOX0.9HTrgfT4jqBuSHdKDvf6s4n0ngcZmq3g-gHMmHroCMY';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+
+let currentUser = null;
+
+// ================= AUTH GATE =================
+const authOverlay = document.getElementById('authOverlay');
+const authTabLogin = document.getElementById('authTabLogin');
+const authTabSignup = document.getElementById('authTabSignup');
+const nameField = document.getElementById('nameField');
+const authHeading = document.getElementById('authHeading');
+const authSub = document.getElementById('authSub');
+const authSubmit = document.getElementById('authSubmit');
+const authError = document.getElementById('authError');
+let authMode = 'login';
+
+function setAuthMode(mode){
+  authMode = mode;
+  authError.textContent = '';
+  if(mode==='login'){
+    authTabLogin.classList.add('active'); authTabSignup.classList.remove('active');
+    nameField.style.display = 'none';
+    authHeading.textContent = 'Welcome back';
+    authSub.textContent = 'Log in to build your week.';
+    authSubmit.textContent = 'Log in';
+  } else {
+    authTabSignup.classList.add('active'); authTabLogin.classList.remove('active');
+    nameField.style.display = 'block';
+    authHeading.textContent = 'Create your account';
+    authSub.textContent = 'Takes a few seconds, then straight into the planner.';
+    authSubmit.textContent = 'Sign up';
+  }
+}
+authTabLogin.onclick = ()=> setAuthMode('login');
+authTabSignup.onclick = ()=> setAuthMode('signup');
+
+authSubmit.onclick = async ()=>{
+  const email = document.getElementById('authEmail').value.trim().toLowerCase();
+  const password = document.getElementById('authPassword').value;
+  const name = document.getElementById('authName').value.trim();
+  authError.textContent = '';
+
+  if(!email || !password){ authError.textContent = 'Enter an email and password.'; return; }
+  if(password.length < 6){ authError.textContent = 'Password must be at least 6 characters.'; return; }
+
+  authSubmit.disabled = true;
+  authSubmit.textContent = authMode === 'signup' ? 'Signing up…' : 'Logging in…';
+
+  try{
+    if(authMode === 'signup'){
+      const { data, error } = await sb.auth.signUp({
+        email, password, options: { data: { name } }
+      });
+      if(error) throw error;
+      if(!data.session){
+        authError.style.color = 'var(--sage)';
+        authError.textContent = 'Check your email to confirm your account, then log in.';
+        setAuthMode('login');
+        authSubmit.disabled = false;
+        authSubmit.textContent = 'Log in';
+        return;
+      }
+    } else {
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if(error) throw error;
+    }
+    // onAuthStateChange below hides the overlay and loads saved data.
+  }catch(err){
+    authError.style.color = 'var(--red-margin)';
+    authError.textContent = err.message || 'Something went wrong — try again.';
+  }finally{
+    authSubmit.disabled = false;
+    authSubmit.textContent = authMode === 'signup' ? 'Sign up' : 'Log in';
+  }
+};
+
+document.getElementById('logoutBtn').onclick = async ()=>{
+  await sb.auth.signOut();
+};
+
+function enterApp(){
+  authOverlay.setAttribute('hidden', '');
+}
+function showAuthGate(){
+  authOverlay.removeAttribute('hidden');
+}
+
+sb.auth.onAuthStateChange((event, session)=>{
+  currentUser = session ? session.user : null;
+  if(currentUser){
+    enterApp();
+    loadScheduleFromSupabase();
+    loadBudgetFromSupabase();
+  } else {
+    showAuthGate();
+  }
+});
+
+sb.auth.getSession().then(({data})=>{
+  currentUser = data.session ? data.session.user : null;
+  if(currentUser){
+    enterApp();
+    loadScheduleFromSupabase();
+    loadBudgetFromSupabase();
+  } else {
+    showAuthGate();
+  }
+});
+
+// ================= FEEDBACK =================
+// Plain client-side HTML/JS can't send email on its own without exposing an
+// address or credentials in the page source. To deliver this quietly (no
+// address shown anywhere in the UI or network payload visible to the user),
+// point FEEDBACK_ENDPOINT at a form-relay service (e.g. Formspree, Getform,
+// Basin) configured in that service's own dashboard to forward submissions
+// to your inbox. The destination address then lives only in that dashboard —
+// never in this file or in anything the browser sends directly.
+const FEEDBACK_ENDPOINT = 'https://formspree.io/f/REPLACE_WITH_YOUR_FORM_ID';
+ 
+document.getElementById('feedbackSend').onclick = async ()=>{
+  const text = document.getElementById('feedbackText').value.trim();
+  const replyEmail = document.getElementById('feedbackEmail').value.trim();
+  const msgEl = document.getElementById('feedbackMsg');
+  if(!text){ msgEl.style.color = 'var(--red-margin)'; msgEl.textContent = 'Write a quick note first.'; return; }
+ 
+  msgEl.style.color = '#8a8478';
+  msgEl.textContent = 'Sending…';
+  try{
+    const resp = await fetch(FEEDBACK_ENDPOINT, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','Accept':'application/json'},
+      body: JSON.stringify({ message: text, replyto: replyEmail || undefined })
+    });
+    if(resp.ok){
+      msgEl.style.color = 'var(--sage)';
+      msgEl.textContent = 'Thanks — feedback sent.';
+      document.getElementById('feedbackText').value = '';
+      document.getElementById('feedbackEmail').value = '';
+    } else {
+      throw new Error('relay not configured');
+    }
+  }catch(err){
+    msgEl.style.color = 'var(--red-margin)';
+    msgEl.textContent = 'Feedback relay isn\'t set up yet — see FEEDBACK_ENDPOINT in the code.';
+  }
+};
+</script>
+</body>
+</html>
