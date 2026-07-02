@@ -613,7 +613,13 @@
           <button class="ghost-btn" id="saveBudgetBtn" type="button">Save</button>
           <button class="ghost-btn" id="loadBudgetBtn" type="button">Load saved</button>
           <button class="ghost-btn" id="resetBudgetBtn" type="button">Reset</button>
+           
         </div>
+         <div class="save-row" style="margin-top:10px;">
+  <button class="ghost-btn" id="enableRemindersBtn" type="button" onclick="enableReminders()">Enable reminders</button>
+  <button class="ghost-btn" id="disableRemindersBtn" type="button" onclick="disableReminders()">Turn off</button>
+</div>
+<div class="status-msg" id="reminderStatus"></div>
         <div class="status-msg" id="budgetStatusMsg"></div>
       </div>
 
@@ -1226,6 +1232,86 @@ document.getElementById('forgotPasswordLink').addEventListener('click', async (e
     authError.textContent = 'Check your email for a password reset link.';
   }
 });
+   // ================= REMINDER NOTIFICATIONS =================
+// Add this near your other post-login code. It:
+// 1. Registers the service worker
+// 2. Asks the browser for notification permission
+// 3. Subscribes to push and saves the subscription to Supabase
+// Call enableReminders() from a button click (browsers require a
+// user gesture — you can't ask for permission automatically on load).
+
+const VAPID_PUBLIC_KEY = 'BFGg1_EOZ-lChN0nDDbnntzZGakFAnR1GoUghCgYN4IzpfvQrPAZ5iql6DjzBGh6BaX19yS5sQ_VNSUm4-Cl9DQ';
+
+function urlBase64ToUint8Array(base64String){
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g,'+').replace(/_/g,'/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
+
+async function enableReminders(){
+  const statusEl = document.getElementById('reminderStatus');
+  const setStatus = (t) => { if(statusEl) statusEl.textContent = t; };
+
+  if(!currentUser){ setStatus('Log in first.'); return; }
+  if(!('serviceWorker' in navigator) || !('PushManager' in window)){
+    setStatus('Your browser doesn\'t support push notifications.');
+    return;
+  }
+
+  try{
+    setStatus('Requesting permission…');
+    const permission = await Notification.requestPermission();
+    if(permission !== 'granted'){
+      setStatus('Notifications blocked. Enable them in your browser\'s site settings to get reminders.');
+      return;
+    }
+
+    const registration = await navigator.serviceWorker.register('/sw.js');
+    await navigator.serviceWorker.ready;
+
+    let subscription = await registration.pushManager.getSubscription();
+    if(!subscription){
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+    }
+
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+
+    const { error } = await sb.from('push_subscriptions').upsert({
+      user_id: currentUser.id,
+      endpoint: subscription.endpoint,
+      subscription: subscription.toJSON(),
+      timezone
+    }, { onConflict: 'user_id,endpoint' });
+
+    if(error) throw error;
+    setStatus('Reminders enabled — you\'ll get a notification a few minutes before each block starts.');
+  }catch(err){
+    setStatus('Could not enable reminders: ' + err.message);
+    console.error(err);
+  }
+}
+
+async function disableReminders(){
+  const statusEl = document.getElementById('reminderStatus');
+  const setStatus = (t) => { if(statusEl) statusEl.textContent = t; };
+  try{
+    const registration = await navigator.serviceWorker.getRegistration();
+    if(registration){
+      const subscription = await registration.pushManager.getSubscription();
+      if(subscription){
+        await sb.from('push_subscriptions').delete().eq('endpoint', subscription.endpoint);
+        await subscription.unsubscribe();
+      }
+    }
+    setStatus('Reminders turned off.');
+  }catch(err){
+    setStatus('Could not disable reminders: ' + err.message);
+  }
+}
 
 // ---- Handle the "set new password" step when someone clicks the emailed link ----
 let recoveryMode = false;
@@ -1390,7 +1476,8 @@ document.getElementById('feedbackSend').onclick = async ()=>{
     msgEl.style.color = 'var(--red-margin)';
     msgEl.textContent = 'Feedback relay isn\'t set up yet — see FEEDBACK_ENDPOINT in the code.';
   }
-};
+
+   
 </script>
 </body>
 </html>
